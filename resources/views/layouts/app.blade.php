@@ -28,8 +28,9 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M30 65 L50 35 L70 65' stroke='%23ec4899' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='28' r='5' fill='%2360a5fa'/></svg>">
 
     {{-- Structured Data (JSON-LD) --}}
-    @yield('structured_data')
-    @if(!View::hasSection('structured_data'))
+    @hasSection('structured_data')
+        @yield('structured_data')
+    @else
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
