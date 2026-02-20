@@ -64,7 +64,8 @@ class FacebookController extends Controller
         $url = $this->resolveRedirects($url);
 
         $client = new Client([
-            'timeout' => 30,
+            'timeout' => 15,
+            'connect_timeout' => 5,
             'verify'  => false,
         ]);
 
@@ -165,6 +166,7 @@ class FacebookController extends Controller
 
         $client = new Client([
             'timeout' => 120,
+            'connect_timeout' => 10,
             'verify'  => false,
         ]);
 

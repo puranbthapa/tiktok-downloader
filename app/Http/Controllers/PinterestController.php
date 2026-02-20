@@ -79,7 +79,8 @@ class PinterestController extends Controller
     private function extractFromPageHtml(string $url, string $pinId): ?array
     {
         $client = new Client([
-            'timeout' => 30,
+            'timeout' => 15,
+            'connect_timeout' => 5,
             'verify'  => false,
         ]);
 

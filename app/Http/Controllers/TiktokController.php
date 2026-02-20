@@ -48,7 +48,7 @@ class TiktokController extends Controller
 
     private function fetchVideoData(string $url): ?array
     {
-        $client = new Client(['timeout' => 30]);
+        $client = new Client(['timeout' => 15, 'connect_timeout' => 5]);
 
         // Using a public TikTok API service (no-watermark)
         $apiUrl = 'https://tikwm.com/api/';
@@ -89,7 +89,7 @@ class TiktokController extends Controller
 
         DownloadLog::logDownload('tiktok', $request);
 
-        $client = new Client(['timeout' => 60]);
+        $client = new Client(['timeout' => 60, 'connect_timeout' => 10]);
         $response = $client->get($videoUrl, ['stream' => true]);
 
         return response()->stream(function () use ($response) {
