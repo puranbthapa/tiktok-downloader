@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use GuzzleHttp\Client;
+use App\Models\DownloadLog;
 
 class TiktokController extends Controller
 {
@@ -35,6 +36,8 @@ class TiktokController extends Controller
             if (!$result) {
                 return back()->with('error', 'Could not fetch video. Please check the URL.');
             }
+
+            DownloadLog::logFetch('tiktok', $videoUrl, $result['title'] ?? null, $request);
 
             return view('tiktok.index', ['video' => $result]);
 
@@ -83,6 +86,8 @@ class TiktokController extends Controller
         if (!$videoUrl) {
             abort(400, 'No URL provided');
         }
+
+        DownloadLog::logDownload('tiktok', $request);
 
         $client = new Client(['timeout' => 60]);
         $response = $client->get($videoUrl, ['stream' => true]);

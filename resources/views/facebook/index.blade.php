@@ -1,28 +1,28 @@
-{{-- resources/views/tiktok/index.blade.php --}}
+{{-- resources/views/facebook/index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'TikTok Video Downloader')
+@section('title', 'Facebook Video Downloader')
 
 @section('content')
 <div class="w-full">
     <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-white mb-2">TikTok Downloader</h1>
-        <p class="text-gray-400">Download TikTok videos without watermark</p>
+        <h1 class="text-4xl font-bold text-white mb-2">Facebook Downloader</h1>
+        <p class="text-gray-400">Download Facebook reels &amp; videos in HD</p>
     </div>
 
     {{-- Form --}}
-    <form action="{{ route('tiktok.download') }}" method="POST" class="mb-6">
+    <form action="{{ route('facebook.download') }}" method="POST" class="mb-6">
         @csrf
         <div class="flex gap-3">
             <input
                 type="text"
                 name="url"
-                placeholder="Paste TikTok URL here..."
+                placeholder="Paste Facebook video URL here..."
                 value="{{ old('url') }}"
-                class="flex-1 bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-pink-500 border border-gray-700"
+                class="flex-1 bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700"
             />
             <button type="submit"
-                class="bg-pink-600 hover:bg-pink-700 text-white font-semibold px-6 py-3 rounded-xl transition">
+                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition">
                 Download
             </button>
         </div>
@@ -46,19 +46,21 @@
         @endif
         <div class="p-5">
             <p class="text-white font-semibold text-lg mb-1">{{ $video['title'] }}</p>
-            <p class="text-gray-400 text-sm mb-4">By: {{ $video['author'] }} · {{ $video['duration'] }}s</p>
+            @if($video['duration'])
+                <p class="text-gray-400 text-sm mb-4">Duration: {{ $video['duration'] }}</p>
+            @endif
 
             <div class="flex flex-col gap-3">
-                @if($video['hdplay'])
-                <a href="{{ route('tiktok.stream', ['url' => $video['hdplay']]) }}"
-                   class="bg-pink-600 hover:bg-pink-700 text-white text-center font-semibold py-3 rounded-xl transition">
-                    ⬇ Download HD (No Watermark)
+                @if($video['hd'])
+                <a href="{{ route('facebook.stream', ['url' => $video['hd']]) }}"
+                   class="bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold py-3 rounded-xl transition">
+                    ⬇ Download HD
                 </a>
                 @endif
-                @if($video['play'])
-                <a href="{{ route('tiktok.stream', ['url' => $video['play']]) }}"
+                @if($video['sd'])
+                <a href="{{ route('facebook.stream', ['url' => $video['sd']]) }}"
                    class="bg-gray-700 hover:bg-gray-600 text-white text-center font-semibold py-3 rounded-xl transition">
-                    ⬇ Download SD (No Watermark)
+                    ⬇ Download SD
                 </a>
                 @endif
             </div>
