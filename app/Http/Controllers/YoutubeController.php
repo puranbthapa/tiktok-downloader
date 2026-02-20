@@ -9,11 +9,6 @@ use App\Models\DownloadLog;
 
 class YoutubeController extends Controller
 {
-    /**
-     * YouTube innertube public API key (embedded in YouTube's own JS).
-     */
-    private const INNERTUBE_API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
-
     public function index()
     {
         return view('youtube.index');
@@ -46,7 +41,6 @@ class YoutubeController extends Controller
                 return back()->with('error', 'Could not fetch video. Make sure the video is public and not age-restricted.');
             }
 
-            // Wrap DB logging in try-catch so DB issues don't break the page
             try {
                 DownloadLog::logFetch('youtube', $videoUrl, $result['title'] ?? null, $request);
             } catch (\Exception $dbEx) {
@@ -76,19 +70,19 @@ class YoutubeController extends Controller
             return null;
         }
 
-        // Method 1: Embedded player innertube (bypasses login requirement)
-        $result = $this->fetchViaEmbeddedPlayer($videoId);
+        // Method 1: Invidious API instances (most reliable from server IPs)
+        $result = $this->fetchViaInvidious($videoId);
         if ($result) return $result;
 
-        // Method 2: Innertube API with WEB client + consent cookies
-        $result = $this->fetchViaWebClient($videoId);
+        // Method 2: Piped API instances
+        $result = $this->fetchViaPiped($videoId);
         if ($result) return $result;
 
-        // Method 3: Scrape YouTube embed page
-        $result = $this->fetchViaScraping($videoId);
+        // Method 3: Cobalt API
+        $result = $this->fetchViaCobalt($videoId);
         if ($result) return $result;
 
-        // Method 4: yt-dlp fallback (if installed on server)
+        // Method 4: yt-dlp fallback (if available)
         $result = $this->fetchViaYtDlp($url);
         if ($result) return $result;
 
@@ -96,7 +90,7 @@ class YoutubeController extends Controller
     }
 
     /* ------------------------------------------------------------------
-     *  Extract the 11-char video ID from various YouTube URL formats
+     *  Extract the 11-char video ID
      * ----------------------------------------------------------------*/
     private function extractVideoId(string $url): ?string
     {
@@ -115,198 +109,135 @@ class YoutubeController extends Controller
     }
 
     /* ------------------------------------------------------------------
-     *  Method 1: TVHTML5_SIMPLY_EMBEDDED_PLAYER client
-     *  This client is used for embedded videos and bypasses login/age
-     *  restrictions. Uses the correct /youtubei/v1/player endpoint
-     *  with the public innertube API key.
+     *  Method 1: Invidious API
+     *  Open-source YouTube proxy with public instances.
+     *  API docs: https://docs.invidious.io/api/
      * ----------------------------------------------------------------*/
-    private function fetchViaEmbeddedPlayer(string $videoId): ?array
+    private function fetchViaInvidious(string $videoId): ?array
     {
-        try {
-            $client = new Client(['timeout' => 30, 'verify' => false]);
+        $instances = [
+            'https://vid.puffyan.us',
+            'https://invidious.fdn.fr',
+            'https://inv.tux.pizza',
+            'https://invidious.privacyredirect.com',
+            'https://invidious.protokolla.fi',
+            'https://iv.ggtyler.dev',
+        ];
 
-            $payload = [
-                'videoId' => $videoId,
-                'context' => [
-                    'client' => [
-                        'clientName'    => 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-                        'clientVersion' => '2.0',
-                        'hl'            => 'en',
-                        'gl'            => 'US',
+        $client = new Client(['timeout' => 15, 'verify' => false]);
+
+        foreach ($instances as $instance) {
+            try {
+                $apiUrl = "{$instance}/api/v1/videos/{$videoId}?fields=title,author,lengthSeconds,videoThumbnails,adaptiveFormats,formatStreams";
+
+                $response = $client->get($apiUrl, [
+                    'http_errors' => false,
+                    'headers'     => [
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept'     => 'application/json',
                     ],
-                    'thirdParty' => [
-                        'embedUrl' => 'https://www.youtube.com',
-                    ],
-                ],
-                'playbackContext' => [
-                    'contentPlaybackContext' => [
-                        'html5Preference'  => 'HTML5_PREF_WANTS',
-                        'signatureTimestamp' => 20073,
-                    ],
-                ],
-                'contentCheckOk' => true,
-                'racyCheckOk'    => true,
-            ];
+                ]);
 
-            $apiUrl = 'https://www.youtube.com/youtubei/v1/player?key=' . self::INNERTUBE_API_KEY;
+                if ($response->getStatusCode() !== 200) {
+                    \Log::info("YouTube Invidious ({$instance}): HTTP {$response->getStatusCode()} for {$videoId}");
+                    continue;
+                }
 
-            $response = $client->post($apiUrl, [
-                'json'        => $payload,
-                'http_errors' => false,
-                'headers'     => [
-                    'User-Agent'   => 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version',
-                    'Content-Type' => 'application/json',
-                    'Origin'       => 'https://www.youtube.com',
-                    'Referer'      => "https://www.youtube.com/embed/{$videoId}",
-                ],
-            ]);
+                $data = json_decode($response->getBody(), true);
+                if (!$data || !isset($data['title'])) {
+                    \Log::info("YouTube Invidious ({$instance}): no data for {$videoId}");
+                    continue;
+                }
 
-            $statusCode = $response->getStatusCode();
-            if ($statusCode !== 200) {
-                \Log::info("YouTube embedded player: HTTP {$statusCode} for {$videoId}");
-                return null;
+                $result = $this->parseInvidiousResponse($data, $videoId);
+                if ($result) {
+                    \Log::info("YouTube: fetched via Invidious ({$instance}) for {$videoId}");
+                    return $result;
+                }
+
+            } catch (\Exception $e) {
+                \Log::info("YouTube Invidious ({$instance}) failed for {$videoId}: " . $e->getMessage());
+                continue;
             }
-
-            $data = json_decode($response->getBody(), true);
-            if (!$data) return null;
-
-            $status = $data['playabilityStatus']['status'] ?? 'UNPLAYABLE';
-            if ($status !== 'OK') {
-                \Log::info("YouTube embedded player: status={$status} for {$videoId}");
-                return null;
-            }
-
-            $result = $this->parseInnertubeResponse($data, $videoId);
-            if ($result) {
-                \Log::info("YouTube: fetched via embedded player for {$videoId}");
-            }
-            return $result;
-
-        } catch (\Exception $e) {
-            \Log::warning("YouTube embedded player failed for {$videoId}: " . $e->getMessage());
-            return null;
         }
+
+        return null;
     }
 
-    /* ------------------------------------------------------------------
-     *  Method 2: WEB client with consent cookies
-     *  Sets SOCS consent cookie to bypass EU login-wall.
-     * ----------------------------------------------------------------*/
-    private function fetchViaWebClient(string $videoId): ?array
+    /**
+     * Parse Invidious API response.
+     */
+    private function parseInvidiousResponse(array $data, string $videoId): ?array
     {
-        try {
-            $client = new Client(['timeout' => 30, 'verify' => false]);
+        $title    = mb_substr($data['title'] ?? 'YouTube Video', 0, 200);
+        $author   = $data['author'] ?? 'Unknown';
+        $duration = $this->formatDuration((int) ($data['lengthSeconds'] ?? 0));
 
-            $payload = [
-                'videoId' => $videoId,
-                'context' => [
-                    'client' => [
-                        'clientName'    => 'WEB',
-                        'clientVersion' => '2.20240101.00.00',
-                        'hl'            => 'en',
-                        'gl'            => 'US',
-                    ],
-                ],
-                'playbackContext' => [
-                    'contentPlaybackContext' => [
-                        'html5Preference' => 'HTML5_PREF_WANTS',
-                    ],
-                ],
-                'contentCheckOk' => true,
-                'racyCheckOk'    => true,
-            ];
-
-            $apiUrl = 'https://www.youtube.com/youtubei/v1/player?key=' . self::INNERTUBE_API_KEY
-                    . '&prettyPrint=false';
-
-            $response = $client->post($apiUrl, [
-                'json'        => $payload,
-                'http_errors' => false,
-                'headers'     => [
-                    'User-Agent'               => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Content-Type'             => 'application/json',
-                    'Origin'                   => 'https://www.youtube.com',
-                    'Referer'                  => 'https://www.youtube.com/',
-                    'X-YouTube-Client-Name'    => '1',
-                    'X-YouTube-Client-Version' => '2.20240101.00.00',
-                    'Cookie'                   => 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg; CONSENT=PENDING+987',
-                ],
-            ]);
-
-            $statusCode = $response->getStatusCode();
-            if ($statusCode !== 200) {
-                \Log::info("YouTube WEB client: HTTP {$statusCode} for {$videoId}");
-                return null;
+        // Get best thumbnail
+        $thumbnail = null;
+        if (!empty($data['videoThumbnails'])) {
+            foreach ($data['videoThumbnails'] as $thumb) {
+                if (($thumb['quality'] ?? '') === 'maxresdefault' || ($thumb['quality'] ?? '') === 'sddefault') {
+                    $thumbnail = $thumb['url'] ?? null;
+                    break;
+                }
             }
-
-            $data = json_decode($response->getBody(), true);
-            if (!$data) return null;
-
-            $status = $data['playabilityStatus']['status'] ?? 'UNPLAYABLE';
-            if ($status !== 'OK') {
-                \Log::info("YouTube WEB client: status={$status} for {$videoId}");
-                return null;
+            if (!$thumbnail) {
+                $thumbnail = $data['videoThumbnails'][0]['url'] ?? null;
             }
-
-            $result = $this->parseInnertubeResponse($data, $videoId);
-            if ($result) {
-                \Log::info("YouTube: fetched via WEB client for {$videoId}");
-            }
-            return $result;
-
-        } catch (\Exception $e) {
-            \Log::warning("YouTube WEB client failed for {$videoId}: " . $e->getMessage());
-            return null;
         }
-    }
-
-    /* ------------------------------------------------------------------
-     *  Parse innertube API player response into our standard format
-     * ----------------------------------------------------------------*/
-    private function parseInnertubeResponse(array $data, string $videoId): ?array
-    {
-        $details   = $data['videoDetails'] ?? [];
-        $title     = mb_substr($details['title'] ?? 'YouTube Video', 0, 200);
-        $author    = $details['author'] ?? 'Unknown';
-        $duration  = $this->formatDuration((int) ($details['lengthSeconds'] ?? 0));
-        $thumbs    = $details['thumbnail']['thumbnails'] ?? [];
-        $thumbnail = !empty($thumbs) ? end($thumbs)['url'] : null;
-
-        $streaming  = $data['streamingData'] ?? [];
-        $allFormats = array_merge(
-            $streaming['formats'] ?? [],
-            $streaming['adaptiveFormats'] ?? []
-        );
-
-        if (empty($allFormats)) {
-            \Log::info("YouTube innertube: no streaming formats found for {$videoId}");
-            return null;
+        if (!$thumbnail) {
+            $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
         }
 
         $formats       = [];
         $seenQualities = [];
 
-        foreach ($allFormats as $fmt) {
-            $mime = $fmt['mimeType'] ?? '';
-            if (strpos($mime, 'video/mp4') === false) continue;
+        // Combined formats (formatStreams = audio+video muxed)
+        foreach ($data['formatStreams'] ?? [] as $fmt) {
+            $container = $fmt['container'] ?? '';
+            if (strtolower($container) !== 'mp4') continue;
 
-            // Use direct URL, or try to build from signatureCipher
             $url = $fmt['url'] ?? null;
             if (!$url) continue;
 
-            $quality    = $fmt['qualityLabel'] ?? ($fmt['quality'] ?? '?');
-            $hasAudio   = !empty($fmt['audioQuality']) || !empty($fmt['audioSampleRate']);
-            $w          = $fmt['width'] ?? 0;
-            $h          = $fmt['height'] ?? 0;
-            $resolution = ($w && $h) ? "{$w}x{$h}" : '?';
-            $size       = $this->formatBytes((int) ($fmt['contentLength'] ?? 0));
-            $isAvc      = strpos($mime, 'avc1') !== false;
+            $quality    = $fmt['qualityLabel'] ?? $fmt['quality'] ?? '?';
+            $resolution = $fmt['resolution'] ?? ($fmt['size'] ?? '?');
+            $size       = '';
+
+            $qualityKey = $quality . '_av';
+            if (isset($seenQualities[$qualityKey])) continue;
+            $seenQualities[$qualityKey] = true;
+
+            $formats[] = [
+                'url'        => $url,
+                'quality'    => $quality,
+                'resolution' => $resolution,
+                'formatId'   => (string) ($fmt['itag'] ?? ''),
+                'size'       => $size,
+                'hasAudio'   => true,
+            ];
+        }
+
+        // Adaptive formats (video-only or audio-only)
+        foreach ($data['adaptiveFormats'] ?? [] as $fmt) {
+            $type = $fmt['type'] ?? '';
+            if (strpos($type, 'video/mp4') === false) continue;
+
+            $url = $fmt['url'] ?? null;
+            if (!$url) continue;
+
+            $quality    = $fmt['qualityLabel'] ?? $fmt['quality'] ?? '?';
+            $hasAudio   = !empty($fmt['audioQuality']);
+            $resolution = $fmt['resolution'] ?? '?';
+            $size       = $this->formatBytes((int) ($fmt['clen'] ?? $fmt['contentLength'] ?? 0));
+            $isAvc      = strpos($type, 'avc1') !== false;
 
             $qualityKey = $quality . ($hasAudio ? '_av' : '_v');
             if (isset($seenQualities[$qualityKey]) && !$isAvc) continue;
             $seenQualities[$qualityKey] = true;
 
-            $formats[$qualityKey] = [
+            $formats[] = [
                 'url'        => $url,
                 'quality'    => $quality,
                 'resolution' => $resolution,
@@ -316,73 +247,200 @@ class YoutubeController extends Controller
             ];
         }
 
-        $formats = array_values($formats);
+        return $this->splitAndSortFormats($formats, $title, $author, $duration, $thumbnail, $videoId);
+    }
+
+    /* ------------------------------------------------------------------
+     *  Method 2: Piped API
+     *  Another open-source YouTube proxy.
+     *  Docs: https://docs.piped.video/docs/api-documentation/
+     * ----------------------------------------------------------------*/
+    private function fetchViaPiped(string $videoId): ?array
+    {
+        $instances = [
+            'https://pipedapi.kavin.rocks',
+            'https://api.piped.yt',
+            'https://pipedapi.in.projectsegfau.lt',
+            'https://pipedapi.adminforge.de',
+        ];
+
+        $client = new Client(['timeout' => 15, 'verify' => false]);
+
+        foreach ($instances as $instance) {
+            try {
+                $apiUrl = "{$instance}/streams/{$videoId}";
+
+                $response = $client->get($apiUrl, [
+                    'http_errors' => false,
+                    'headers'     => [
+                        'User-Agent' => 'Mozilla/5.0',
+                        'Accept'     => 'application/json',
+                    ],
+                ]);
+
+                if ($response->getStatusCode() !== 200) {
+                    \Log::info("YouTube Piped ({$instance}): HTTP {$response->getStatusCode()} for {$videoId}");
+                    continue;
+                }
+
+                $data = json_decode($response->getBody(), true);
+                if (!$data || !isset($data['title'])) {
+                    \Log::info("YouTube Piped ({$instance}): no data for {$videoId}");
+                    continue;
+                }
+
+                $result = $this->parsePipedResponse($data, $videoId);
+                if ($result) {
+                    \Log::info("YouTube: fetched via Piped ({$instance}) for {$videoId}");
+                    return $result;
+                }
+
+            } catch (\Exception $e) {
+                \Log::info("YouTube Piped ({$instance}) failed for {$videoId}: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse Piped API response.
+     */
+    private function parsePipedResponse(array $data, string $videoId): ?array
+    {
+        $title     = mb_substr($data['title'] ?? 'YouTube Video', 0, 200);
+        $author    = $data['uploader'] ?? $data['uploaderName'] ?? 'Unknown';
+        $duration  = $this->formatDuration((int) ($data['duration'] ?? 0));
+        $thumbnail = $data['thumbnailUrl'] ?? "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
+
+        $formats       = [];
+        $seenQualities = [];
+
+        // Video streams (can have audio)
+        foreach ($data['videoStreams'] ?? [] as $fmt) {
+            $mime = $fmt['mimeType'] ?? $fmt['format'] ?? '';
+            if (strpos($mime, 'video/mp4') === false && ($fmt['format'] ?? '') !== 'MPEG_4') continue;
+
+            $url = $fmt['url'] ?? null;
+            if (!$url) continue;
+
+            $quality    = $fmt['quality'] ?? '?';
+            $hasAudio   = ($fmt['videoOnly'] ?? true) === false;
+            $w          = $fmt['width'] ?? 0;
+            $h          = $fmt['height'] ?? 0;
+            $resolution = ($w && $h) ? "{$w}x{$h}" : '?';
+            $size       = $this->formatBytes((int) ($fmt['contentLength'] ?? 0));
+            $codec      = $fmt['codec'] ?? '';
+            $isAvc      = strpos($codec, 'avc1') !== false;
+
+            $qualityKey = $quality . ($hasAudio ? '_av' : '_v');
+            if (isset($seenQualities[$qualityKey]) && !$isAvc) continue;
+            $seenQualities[$qualityKey] = true;
+
+            $formats[] = [
+                'url'        => $url,
+                'quality'    => $quality,
+                'resolution' => $resolution,
+                'formatId'   => (string) ($fmt['itag'] ?? ''),
+                'size'       => $size,
+                'hasAudio'   => $hasAudio,
+            ];
+        }
 
         return $this->splitAndSortFormats($formats, $title, $author, $duration, $thumbnail, $videoId);
     }
 
     /* ------------------------------------------------------------------
-     *  Method 3: Scrape YouTube watch page with consent cookies
+     *  Method 3: Cobalt API
+     *  Open-source media downloader API.
      * ----------------------------------------------------------------*/
-    private function fetchViaScraping(string $videoId): ?array
+    private function fetchViaCobalt(string $videoId): ?array
     {
-        try {
-            $client = new Client(['timeout' => 30, 'verify' => false]);
+        $instances = [
+            'https://api.cobalt.tools',
+        ];
 
-            // Try the embed page first (less login restriction)
-            $urls = [
-                "https://www.youtube.com/embed/{$videoId}",
-                "https://www.youtube.com/watch?v={$videoId}",
-            ];
+        $client = new Client(['timeout' => 20, 'verify' => false]);
 
-            foreach ($urls as $pageUrl) {
-                $response = $client->get($pageUrl, [
+        foreach ($instances as $instance) {
+            try {
+                $response = $client->post("{$instance}/", [
                     'http_errors' => false,
-                    'headers'     => [
-                        'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept-Language' => 'en-US,en;q=0.9',
-                        'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Cookie'          => 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg; CONSENT=PENDING+987',
+                    'json'        => [
+                        'url'            => "https://www.youtube.com/watch?v={$videoId}",
+                        'downloadMode'   => 'auto',
+                        'filenameStyle'  => 'basic',
+                    ],
+                    'headers' => [
+                        'User-Agent'   => 'Mozilla/5.0',
+                        'Content-Type' => 'application/json',
+                        'Accept'       => 'application/json',
                     ],
                 ]);
 
-                if ($response->getStatusCode() !== 200) continue;
-
-                $html = (string) $response->getBody();
-
-                // Try ytInitialPlayerResponse
-                $data = null;
-                if (preg_match('/var\s+ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;\s*(?:var|<\/script)/s', $html, $m)) {
-                    $data = json_decode($m[1], true);
-                }
-
-                // Fallback: try to find embedded player response
-                if (!$data && preg_match('/ytInitialPlayerResponse["\s]*[:=]\s*(\{.+?\})\s*[;,]/s', $html, $m)) {
-                    $data = json_decode($m[1], true);
-                }
-
-                if (!$data) continue;
-
-                $status = $data['playabilityStatus']['status'] ?? 'UNPLAYABLE';
-                if ($status !== 'OK') {
-                    \Log::info("YouTube scraping ({$pageUrl}): status={$status} for {$videoId}");
+                if ($response->getStatusCode() !== 200) {
+                    \Log::info("YouTube Cobalt ({$instance}): HTTP {$response->getStatusCode()} for {$videoId}");
                     continue;
                 }
 
-                $result = $this->parseInnertubeResponse($data, $videoId);
-                if ($result) {
-                    \Log::info("YouTube: fetched via scraping ({$pageUrl}) for {$videoId}");
-                    return $result;
+                $data = json_decode($response->getBody(), true);
+                if (!$data || empty($data['url'])) {
+                    \Log::info("YouTube Cobalt ({$instance}): no url in response for {$videoId}");
+                    continue;
                 }
+
+                // Cobalt returns a single download URL — build simple result
+                $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
+
+                // Get title from YouTube oEmbed (lightweight)
+                $title  = 'YouTube Video';
+                $author = 'Unknown';
+                try {
+                    $oembed = $client->get("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={$videoId}&format=json", [
+                        'http_errors' => false,
+                        'timeout'     => 5,
+                    ]);
+                    if ($oembed->getStatusCode() === 200) {
+                        $oData  = json_decode($oembed->getBody(), true);
+                        $title  = mb_substr($oData['title'] ?? $title, 0, 200);
+                        $author = $oData['author_name'] ?? $author;
+                        if (!empty($oData['thumbnail_url'])) {
+                            $thumbnail = $oData['thumbnail_url'];
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // oEmbed failed, use defaults
+                }
+
+                \Log::info("YouTube: fetched via Cobalt ({$instance}) for {$videoId}");
+
+                return [
+                    'title'     => $title,
+                    'author'    => $author,
+                    'duration'  => '0:00',
+                    'cover'     => $thumbnail,
+                    'videoId'   => $videoId,
+                    'combined'  => [
+                        [
+                            'url'        => $data['url'],
+                            'quality'    => 'Best',
+                            'resolution' => '?',
+                            'formatId'   => '',
+                            'size'       => '',
+                            'hasAudio'   => true,
+                        ],
+                    ],
+                    'videoOnly' => [],
+                ];
+
+            } catch (\Exception $e) {
+                \Log::info("YouTube Cobalt ({$instance}) failed for {$videoId}: " . $e->getMessage());
+                continue;
             }
-
-            \Log::info("YouTube scraping: all page attempts failed for {$videoId}");
-            return null;
-
-        } catch (\Exception $e) {
-            \Log::warning("YouTube scraping failed for {$videoId}: " . $e->getMessage());
-            return null;
         }
+
+        return null;
     }
 
     /* ------------------------------------------------------------------
@@ -390,7 +448,6 @@ class YoutubeController extends Controller
      * ----------------------------------------------------------------*/
     private function fetchViaYtDlp(string $url): ?array
     {
-        // Check if shell_exec is available
         $disabled = array_map('trim', explode(',', ini_get('disable_functions') ?: ''));
         if (!function_exists('shell_exec') || in_array('shell_exec', $disabled)) {
             \Log::info('YouTube: shell_exec is disabled, skipping yt-dlp fallback');
