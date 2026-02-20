@@ -8,22 +8,22 @@
 @section('structured_data')
 <script type="application/ld+json">
 {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
+    "@@context": "https://schema.org",
+    "@@type": "FAQPage",
     "mainEntity": [
         {
-            "@type": "Question",
+            "@@type": "Question",
             "name": "How to download YouTube videos?",
             "acceptedAnswer": {
-                "@type": "Answer",
+                "@@type": "Answer",
                 "text": "Copy the YouTube video URL, paste it into our downloader, click Download, and choose your preferred quality (360p, 720p, 1080p, or 4K)."
             }
         },
         {
-            "@type": "Question",
+            "@@type": "Question",
             "name": "Can I download YouTube Shorts?",
             "acceptedAnswer": {
-                "@type": "Answer",
+                "@@type": "Answer",
                 "text": "Yes, our downloader supports YouTube Shorts. Just paste the Shorts URL and download it like any other video."
             }
         }

@@ -1,53 +1,53 @@
-{{-- resources/views/pinterest/index.blade.php --}}
-@extends('layouts.app')
 
-@section('title', 'Pinterest Video Downloader - Download Pinterest Videos & Pins')
-@section('meta_description', 'Download Pinterest videos and image pins for free. Save Pinterest video pins to your device in high quality. No registration or app installation needed.')
-@section('meta_keywords', 'pinterest downloader, pinterest video downloader, download pinterest videos, pinterest pin downloader, save pinterest videos, pinterest image downloader')
 
-@section('structured_data')
+
+<?php $__env->startSection('title', 'Pinterest Video Downloader - Download Pinterest Videos & Pins'); ?>
+<?php $__env->startSection('meta_description', 'Download Pinterest videos and image pins for free. Save Pinterest video pins to your device in high quality. No registration or app installation needed.'); ?>
+<?php $__env->startSection('meta_keywords', 'pinterest downloader, pinterest video downloader, download pinterest videos, pinterest pin downloader, save pinterest videos, pinterest image downloader'); ?>
+
+<?php $__env->startSection('structured_data'); ?>
 <script type="application/ld+json">
 {
-    "@@context": "https://schema.org",
-    "@@type": "FAQPage",
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
     "mainEntity": [
         {
-            "@@type": "Question",
+            "@type": "Question",
             "name": "How to download Pinterest videos?",
             "acceptedAnswer": {
-                "@@type": "Answer",
+                "@type": "Answer",
                 "text": "Copy the Pinterest pin URL, paste it into our downloader, and click Download to save the video or image."
             }
         },
         {
-            "@@type": "Question",
+            "@type": "Question",
             "name": "Can I download Pinterest images too?",
             "acceptedAnswer": {
-                "@@type": "Answer",
+                "@type": "Answer",
                 "text": "Yes, our downloader supports both Pinterest video pins and image pins."
             }
         }
     ]
 }
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="w-full">
     <div class="text-center mb-8">
         <h1 class="text-4xl font-bold text-white mb-2">Pinterest Downloader</h1>
         <p class="text-gray-400">Download Pinterest videos &amp; pins</p>
     </div>
 
-    {{-- Form --}}
-    <form action="{{ route('pinterest.download') }}" method="POST" class="mb-6">
-        @csrf
+    
+    <form action="<?php echo e(route('pinterest.download')); ?>" method="POST" class="mb-6">
+        <?php echo csrf_field(); ?>
         <div class="flex gap-3">
             <input
                 type="text"
                 name="url"
                 placeholder="Paste Pinterest pin URL here..."
-                value="{{ old('url') }}"
+                value="<?php echo e(old('url')); ?>"
                 class="flex-1 bg-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 border border-gray-700"
             />
             <button type="submit"
@@ -55,42 +55,50 @@
                 Download
             </button>
         </div>
-        @error('url')
-            <p class="text-red-400 mt-2 text-sm">{{ $message }}</p>
-        @enderror
+        <?php $__errorArgs = ['url'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+            <p class="text-red-400 mt-2 text-sm"><?php echo e($message); ?></p>
+        <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
     </form>
 
-    {{-- Error --}}
-    @if(session('error'))
+    
+    <?php if(session('error')): ?>
         <div class="bg-red-500/20 border border-red-500 text-red-300 rounded-xl p-4 mb-6">
-            {{ session('error') }}
-        </div>
-    @endif
+            <?php echo e(session('error')); ?>
 
-    {{-- Result --}}
-    @if(isset($video))
+        </div>
+    <?php endif; ?>
+
+    
+    <?php if(isset($video)): ?>
     <div class="bg-gray-800 rounded-2xl overflow-hidden border border-gray-700">
-        @if($video['cover'])
-            <img src="{{ $video['cover'] }}" class="w-full h-52 object-cover" alt="thumbnail">
-        @endif
+        <?php if($video['cover']): ?>
+            <img src="<?php echo e($video['cover']); ?>" class="w-full h-52 object-cover" alt="thumbnail">
+        <?php endif; ?>
         <div class="p-5">
-            <p class="text-white font-semibold text-lg mb-1">{{ $video['title'] }}</p>
-            @if($video['description'])
-                <p class="text-gray-400 text-sm mb-4">{{ Str::limit($video['description'], 120) }}</p>
-            @endif
+            <p class="text-white font-semibold text-lg mb-1"><?php echo e($video['title']); ?></p>
+            <?php if($video['description']): ?>
+                <p class="text-gray-400 text-sm mb-4"><?php echo e(Str::limit($video['description'], 120)); ?></p>
+            <?php endif; ?>
 
             <div class="flex flex-col gap-3">
-                @if($video['video'])
-                <a href="{{ route('pinterest.stream', ['url' => $video['video']]) }}"
+                <?php if($video['video']): ?>
+                <a href="<?php echo e(route('pinterest.stream', ['url' => $video['video']])); ?>"
                    class="bg-red-600 hover:bg-red-700 text-white text-center font-semibold py-3 rounded-xl transition">
                     ⬇ Download Video
                 </a>
-                @endif
+                <?php endif; ?>
             </div>
         </div>
     </div>
-    @endif
-    {{-- FAQ Section --}}
+    <?php endif; ?>
+    
     <div class="mt-10 text-left">
         <h2 class="text-xl font-bold text-white mb-4">Frequently Asked Questions</h2>
         <div class="space-y-4">
@@ -109,4 +117,6 @@
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\xampp\htdocs\tiktok-downloader\resources\views/pinterest/index.blade.php ENDPATH**/ ?>

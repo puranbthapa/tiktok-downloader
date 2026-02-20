@@ -27,27 +27,8 @@
     {{-- Favicon --}}
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M30 65 L50 35 L70 65' stroke='%23ec4899' stroke-width='8' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='28' r='5' fill='%2360a5fa'/></svg>">
 
-    {{-- Structured Data (JSON-LD) --}}
-    @hasSection('structured_data')
-        @yield('structured_data')
-    @else
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Video Downloader",
-        "url": "{{ config('app.url') }}",
-        "description": "Free online video downloader for TikTok, YouTube, Facebook, and Pinterest.",
-        "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Any",
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-        }
-    }
-    </script>
-    @endif
+    {{-- Structured Data (JSON-LD) - each page provides its own --}}
+    @yield('structured_data')
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>

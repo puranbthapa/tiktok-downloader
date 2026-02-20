@@ -1,28 +1,28 @@
-{{-- resources/views/home.blade.php --}}
-@extends('layouts.app')
 
-@section('title', 'Free Video Downloader - Download TikTok, YouTube, Facebook, Pinterest Videos Online')
-@section('meta_description', 'Download videos from TikTok without watermark, YouTube in multiple qualities, Facebook reels in HD, and Pinterest pins. 100% free, fast, and no registration required.')
-@section('meta_keywords', 'free video downloader, tiktok downloader no watermark, youtube video downloader, facebook video downloader, pinterest video downloader, download videos online free, video saver')
 
-@section('structured_data')
+
+<?php $__env->startSection('title', 'Free Video Downloader - Download TikTok, YouTube, Facebook, Pinterest Videos Online'); ?>
+<?php $__env->startSection('meta_description', 'Download videos from TikTok without watermark, YouTube in multiple qualities, Facebook reels in HD, and Pinterest pins. 100% free, fast, and no registration required.'); ?>
+<?php $__env->startSection('meta_keywords', 'free video downloader, tiktok downloader no watermark, youtube video downloader, facebook video downloader, pinterest video downloader, download videos online free, video saver'); ?>
+
+<?php $__env->startSection('structured_data'); ?>
 <script type="application/ld+json">
 {
-    "@@context": "https://schema.org",
-    "@@type": "WebSite",
+    "@context": "https://schema.org",
+    "@type": "WebSite",
     "name": "Video Downloader",
-    "url": "{{ config('app.url') }}",
+    "url": "<?php echo e(config('app.url')); ?>",
     "description": "Free online video downloader for TikTok, YouTube, Facebook, and Pinterest.",
     "potentialAction": {
-        "@@type": "SearchAction",
-        "target": "{{ config('app.url') }}/tiktok?url={search_term_string}",
+        "@type": "SearchAction",
+        "target": "<?php echo e(config('app.url')); ?>/tiktok?url={search_term_string}",
         "query-input": "required name=search_term_string"
     }
 }
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="w-full">
     <div class="text-center mb-10">
         <h1 class="text-4xl font-bold text-white mb-2">Video Downloader</h1>
@@ -30,8 +30,8 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {{-- TikTok Card --}}
-        <a href="{{ route('tiktok.index') }}"
+        
+        <a href="<?php echo e(route('tiktok.index')); ?>"
            class="group bg-gray-800 border border-gray-700 hover:border-pink-500/50 rounded-2xl p-6 text-center transition-all hover:scale-[1.02]">
             <div class="flex justify-center mb-4">
                 <svg class="w-14 h-14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -49,8 +49,8 @@
             <p class="text-gray-400 text-sm">Download TikTok videos without watermark</p>
         </a>
 
-        {{-- YouTube Card --}}
-        <a href="{{ route('youtube.index') }}"
+        
+        <a href="<?php echo e(route('youtube.index')); ?>"
            class="group bg-gray-800 border border-gray-700 hover:border-red-500/50 rounded-2xl p-6 text-center transition-all hover:scale-[1.02]">
             <div class="flex justify-center mb-4">
                 <svg class="w-14 h-14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -62,8 +62,8 @@
             <p class="text-gray-400 text-sm">Download YouTube videos & shorts</p>
         </a>
 
-        {{-- Facebook Card --}}
-        <a href="{{ route('facebook.index') }}"
+        
+        <a href="<?php echo e(route('facebook.index')); ?>"
            class="group bg-gray-800 border border-gray-700 hover:border-blue-500/50 rounded-2xl p-6 text-center transition-all hover:scale-[1.02]">
             <div class="flex justify-center mb-4">
                 <svg class="w-14 h-14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -75,8 +75,8 @@
             <p class="text-gray-400 text-sm">Download Facebook reels & videos</p>
         </a>
 
-        {{-- Pinterest Card --}}
-        <a href="{{ route('pinterest.index') }}"
+        
+        <a href="<?php echo e(route('pinterest.index')); ?>"
            class="group bg-gray-800 border border-gray-700 hover:border-red-500/50 rounded-2xl p-6 text-center transition-all hover:scale-[1.02]">
             <div class="flex justify-center mb-4">
                 <svg class="w-14 h-14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -87,7 +87,7 @@
             <p class="text-gray-400 text-sm">Download Pinterest videos & pins</p>
         </a>
     </div>
-    {{-- SEO Content Section --}}
+    
     <div class="mt-12 text-left">
         <h2 class="text-2xl font-bold text-white mb-4">Free Online Video Downloader</h2>
         <p class="text-gray-400 text-sm mb-4">Our free video downloader lets you save videos from the most popular social media platforms. Download TikTok videos without watermark, YouTube videos in multiple qualities, Facebook reels and videos in HD, and Pinterest video pins — all completely free with no registration required.</p>
@@ -109,4 +109,6 @@
         </ol>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\xampp\htdocs\tiktok-downloader\resources\views/home.blade.php ENDPATH**/ ?>
