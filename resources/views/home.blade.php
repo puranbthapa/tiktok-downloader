@@ -1,9 +1,9 @@
 {{-- resources/views/home.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Free Video Downloader - Download TikTok, YouTube, Facebook, Pinterest Videos Online')
-@section('meta_description', 'Download videos from TikTok without watermark, YouTube in multiple qualities, Facebook reels in HD, and Pinterest pins. 100% free, fast, and no registration required.')
-@section('meta_keywords', 'free video downloader, tiktok downloader no watermark, youtube video downloader, facebook video downloader, pinterest video downloader, download videos online free, video saver')
+@section('title', 'Free Video Downloader - Download TikTok, Facebook, Pinterest Videos Online')
+@section('meta_description', 'Download videos from TikTok without watermark, Facebook reels in HD, and Pinterest pins. 100% free, fast, and no registration required.')
+@section('meta_keywords', 'free video downloader, tiktok downloader no watermark, facebook video downloader, pinterest video downloader, download videos online free, video saver')
 
 @section('structured_data')
 <script type="application/ld+json">
@@ -12,7 +12,7 @@
     "@@type": "WebSite",
     "name": "Video Downloader",
     "url": "{{ config('app.url') }}",
-    "description": "Free online video downloader for TikTok, YouTube, Facebook, and Pinterest.",
+    "description": "Free online video downloader for TikTok, Facebook, and Pinterest.",
     "potentialAction": {
         "@@type": "SearchAction",
         "target": "{{ config('app.url') }}/tiktok?url={search_term_string}",
@@ -29,7 +29,7 @@
         <p class="text-gray-400">Download videos from your favourite platforms</p>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {{-- TikTok Card --}}
         <a href="{{ route('tiktok.index') }}"
            class="group bg-gray-800 border border-gray-700 hover:border-pink-500/50 rounded-2xl p-6 text-center transition-all hover:scale-[1.02]">
@@ -47,19 +47,6 @@
             </div>
             <h2 class="text-xl font-bold text-white mb-1 group-hover:text-pink-400 transition">TikTok</h2>
             <p class="text-gray-400 text-sm">Download TikTok videos without watermark</p>
-        </a>
-
-        {{-- YouTube Card --}}
-        <a href="{{ route('youtube.index') }}"
-           class="group bg-gray-800 border border-gray-700 hover:border-red-500/50 rounded-2xl p-6 text-center transition-all hover:scale-[1.02]">
-            <div class="flex justify-center mb-4">
-                <svg class="w-14 h-14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M44.522 12.415a5.556 5.556 0 0 0-3.91-3.934C37.248 7.5 24 7.5 24 7.5s-13.248 0-16.612.981a5.556 5.556 0 0 0-3.91 3.934C2.5 15.793 2.5 24 2.5 24s0 8.207.978 11.585a5.556 5.556 0 0 0 3.91 3.934C10.752 40.5 24 40.5 24 40.5s13.248 0 16.612-.981a5.556 5.556 0 0 0 3.91-3.934C45.5 32.207 45.5 24 45.5 24s0-8.207-.978-11.585Z" fill="#FF0000"/>
-                    <path d="M19.5 31.5V16.5L33 24l-13.5 7.5Z" fill="#FFF"/>
-                </svg>
-            </div>
-            <h2 class="text-xl font-bold text-white mb-1 group-hover:text-red-400 transition">YouTube</h2>
-            <p class="text-gray-400 text-sm">Download YouTube videos & shorts</p>
         </a>
 
         {{-- Facebook Card --}}
@@ -90,19 +77,18 @@
     {{-- SEO Content Section --}}
     <div class="mt-12 text-left">
         <h2 class="text-2xl font-bold text-white mb-4">Free Online Video Downloader</h2>
-        <p class="text-gray-400 text-sm mb-4">Our free video downloader lets you save videos from the most popular social media platforms. Download TikTok videos without watermark, YouTube videos in multiple qualities, Facebook reels and videos in HD, and Pinterest video pins — all completely free with no registration required.</p>
+        <p class="text-gray-400 text-sm mb-4">Our free video downloader lets you save videos from the most popular social media platforms. Download TikTok videos without watermark, Facebook reels and videos in HD, and Pinterest video pins — all completely free with no registration required.</p>
 
         <h3 class="text-lg font-semibold text-white mb-2">Supported Platforms</h3>
         <ul class="text-gray-400 text-sm list-disc list-inside mb-4 space-y-1">
             <li><strong class="text-white">TikTok</strong> — Download TikTok videos without watermark in HD quality</li>
-            <li><strong class="text-white">YouTube</strong> — Save YouTube videos and shorts in multiple resolutions</li>
             <li><strong class="text-white">Facebook</strong> — Download Facebook reels, stories, and video posts in HD/SD</li>
             <li><strong class="text-white">Pinterest</strong> — Save Pinterest video pins and image pins</li>
         </ul>
 
         <h3 class="text-lg font-semibold text-white mb-2">How It Works</h3>
         <ol class="text-gray-400 text-sm list-decimal list-inside mb-4 space-y-1">
-            <li>Choose the platform (TikTok, YouTube, Facebook, or Pinterest)</li>
+            <li>Choose the platform (TikTok, Facebook, or Pinterest)</li>
             <li>Paste the video URL into the input field</li>
             <li>Click Download and choose your preferred quality</li>
             <li>Save the video to your device</li>

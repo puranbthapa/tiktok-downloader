@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TiktokController;
 use App\Http\Controllers\FacebookController;
 use App\Http\Controllers\PinterestController;
-use App\Http\Controllers\YoutubeController;
+// use App\Http\Controllers\YoutubeController; // Disabled - YouTube API not working
 use App\Http\Controllers\AdminController;
 
 // Home
@@ -26,13 +26,13 @@ Route::prefix('facebook')->group(function () {
     Route::get('/stream',    [FacebookController::class, 'stream'])->name('facebook.stream');
 });
 
-// YouTube
-Route::prefix('youtube')->group(function () {
-    Route::get('/',         [YoutubeController::class, 'index'])->name('youtube.index');
-    Route::post('/download', [YoutubeController::class, 'download'])->name('youtube.download');
-    Route::get('/download',  fn () => redirect()->route('youtube.index'));
-    Route::get('/stream',    [YoutubeController::class, 'stream'])->name('youtube.stream');
-});
+// YouTube - Disabled due to API unavailability
+// Route::prefix('youtube')->group(function () {
+//     Route::get('/',         [YoutubeController::class, 'index'])->name('youtube.index');
+//     Route::post('/download', [YoutubeController::class, 'download'])->name('youtube.download');
+//     Route::get('/download',  fn () => redirect()->route('youtube.index'));
+//     Route::get('/stream',    [YoutubeController::class, 'stream'])->name('youtube.stream');
+// });
 
 // Pinterest
 Route::prefix('pinterest')->group(function () {
