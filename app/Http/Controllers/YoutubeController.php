@@ -115,16 +115,23 @@ class YoutubeController extends Controller
      * ----------------------------------------------------------------*/
     private function fetchViaInvidious(string $videoId): ?array
     {
+        // Updated list of working Invidious instances (Feb 2026)
+        // Check https://api.invidious.io/ for current list
         $instances = [
-            'https://vid.puffyan.us',
-            'https://invidious.fdn.fr',
-            'https://inv.tux.pizza',
-            'https://invidious.privacyredirect.com',
-            'https://invidious.protokolla.fi',
-            'https://iv.ggtyler.dev',
+            'https://invidious.nerdvpn.de',
+            'https://inv.nadeko.net',
+            'https://invidious.jing.rocks',
+            'https://invidious.privacydev.net',
+            'https://invidious.drgns.space',
+            'https://yt.drgnz.club',
+            'https://iv.melmac.space',
+            'https://invidious.perennialte.ch',
         ];
 
-        $client = new Client(['timeout' => 15, 'verify' => false]);
+        // Shuffle to distribute load
+        shuffle($instances);
+
+        $client = new Client(['timeout' => 10, 'verify' => false, 'connect_timeout' => 5]);
 
         foreach ($instances as $instance) {
             try {
@@ -257,14 +264,21 @@ class YoutubeController extends Controller
      * ----------------------------------------------------------------*/
     private function fetchViaPiped(string $videoId): ?array
     {
+        // Updated list of working Piped instances (Feb 2026)
+        // Check https://piped-instances.kavin.rocks/ for current list
         $instances = [
             'https://pipedapi.kavin.rocks',
-            'https://api.piped.yt',
-            'https://pipedapi.in.projectsegfau.lt',
-            'https://pipedapi.adminforge.de',
+            'https://pipedapi.tokhmi.xyz',
+            'https://pipedapi.moomoo.me',
+            'https://pipedapi.syncpundit.io',
+            'https://api-piped.mha.fi',
+            'https://piped-api.garuber.com',
         ];
 
-        $client = new Client(['timeout' => 15, 'verify' => false]);
+        // Shuffle to distribute load
+        shuffle($instances);
+
+        $client = new Client(['timeout' => 10, 'verify' => false, 'connect_timeout' => 5]);
 
         foreach ($instances as $instance) {
             try {
@@ -359,9 +373,10 @@ class YoutubeController extends Controller
     {
         $instances = [
             'https://api.cobalt.tools',
+            'https://cobalt-api.hyper.lol',
         ];
 
-        $client = new Client(['timeout' => 20, 'verify' => false]);
+        $client = new Client(['timeout' => 15, 'verify' => false, 'connect_timeout' => 5]);
 
         foreach ($instances as $instance) {
             try {
@@ -373,7 +388,7 @@ class YoutubeController extends Controller
                         'filenameStyle'  => 'basic',
                     ],
                     'headers' => [
-                        'User-Agent'   => 'Mozilla/5.0',
+                        'User-Agent'   => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                         'Content-Type' => 'application/json',
                         'Accept'       => 'application/json',
                     ],
