@@ -1,7 +1,36 @@
 {{-- resources/views/facebook/index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Facebook Video Downloader')
+@section('title', 'Facebook Video Downloader - Download Facebook Reels & Videos in HD')
+@section('meta_description', 'Download Facebook videos and reels in HD and SD quality. Free Facebook video downloader — save public Facebook videos to your device. No login required.')
+@section('meta_keywords', 'facebook video downloader, download facebook videos, facebook reels downloader, fb video downloader, save facebook videos, facebook downloader hd')
+
+@section('structured_data')
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "How to download Facebook videos?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Copy the Facebook video URL, paste it into our downloader, and click Download. Choose between HD and SD quality."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I download Facebook Reels?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, our downloader supports Facebook Reels, video posts, and stories as long as they are publicly accessible."
+            }
+        }
+    ]
+}
+</script>
+@endsection
 
 @section('content')
 <div class="w-full">
@@ -67,5 +96,23 @@
         </div>
     </div>
     @endif
+    {{-- FAQ Section --}}
+    <div class="mt-10 text-left">
+        <h2 class="text-xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-white font-semibold text-sm">How to download Facebook videos?</h3>
+                <p class="text-gray-400 text-sm mt-1">Copy the Facebook video URL from your browser or the Facebook app (Share > Copy Link), paste it above, and click Download.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Can I download Facebook Reels?</h3>
+                <p class="text-gray-400 text-sm mt-1">Yes! Our downloader supports Facebook Reels, video posts, and stories. Just make sure the video is set to public.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Why can't I download a video?</h3>
+                <p class="text-gray-400 text-sm mt-1">Make sure the video is publicly visible. Private videos or videos from closed groups cannot be downloaded.</p>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

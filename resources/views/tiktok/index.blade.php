@@ -1,7 +1,36 @@
 {{-- resources/views/tiktok/index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'TikTok Video Downloader')
+@section('title', 'TikTok Video Downloader - Download TikTok Videos Without Watermark')
+@section('meta_description', 'Download TikTok videos without watermark in HD quality. Free TikTok video downloader — save TikTok videos, reels, and stories to your device. No registration needed.')
+@section('meta_keywords', 'tiktok downloader, tiktok video downloader, download tiktok without watermark, tiktok saver, save tiktok videos, tiktok downloader hd, tiktok no watermark')
+
+@section('structured_data')
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "How to download TikTok videos without watermark?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Copy the TikTok video URL, paste it into our downloader, and click Download. The video will be saved without watermark in HD quality."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Is this TikTok downloader free?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, our TikTok video downloader is 100% free. No registration, no software installation required."
+            }
+        }
+    ]
+}
+</script>
+@endsection
 
 @section('content')
 <div class="w-full">
@@ -65,5 +94,23 @@
         </div>
     </div>
     @endif
+    {{-- FAQ Section --}}
+    <div class="mt-10 text-left">
+        <h2 class="text-xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-white font-semibold text-sm">How to download TikTok videos without watermark?</h3>
+                <p class="text-gray-400 text-sm mt-1">Copy the TikTok video URL from the app or browser, paste it in the input field above, and click Download. You'll get the video without watermark in HD quality.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Is this TikTok downloader free?</h3>
+                <p class="text-gray-400 text-sm mt-1">Yes, our TikTok video downloader is completely free. No registration, no app installation, and no limits on downloads.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Can I download TikTok videos on mobile?</h3>
+                <p class="text-gray-400 text-sm mt-1">Yes! Our downloader works on all devices — iPhone, Android, PC, and Mac. Just open this page in your mobile browser and paste the link.</p>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

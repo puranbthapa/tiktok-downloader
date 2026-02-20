@@ -1,7 +1,36 @@
 {{-- resources/views/youtube/index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'YouTube Video Downloader')
+@section('title', 'YouTube Video Downloader - Download YouTube Videos in HD, 4K')
+@section('meta_description', 'Download YouTube videos and shorts in HD, Full HD, and 4K quality. Free YouTube video downloader with multiple format options. No registration required.')
+@section('meta_keywords', 'youtube downloader, youtube video downloader, download youtube videos, youtube to mp4, youtube downloader hd, youtube shorts downloader, save youtube videos')
+
+@section('structured_data')
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "How to download YouTube videos?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Copy the YouTube video URL, paste it into our downloader, click Download, and choose your preferred quality (360p, 720p, 1080p, or 4K)."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I download YouTube Shorts?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, our downloader supports YouTube Shorts. Just paste the Shorts URL and download it like any other video."
+            }
+        }
+    ]
+}
+</script>
+@endsection
 
 @section('content')
 <div class="w-full">
@@ -79,5 +108,23 @@
         </div>
     </div>
     @endif
+    {{-- FAQ Section --}}
+    <div class="mt-10 text-left">
+        <h2 class="text-xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-white font-semibold text-sm">How to download YouTube videos?</h3>
+                <p class="text-gray-400 text-sm mt-1">Copy the YouTube video URL from your browser address bar, paste it in the input field above, click Download, and choose your preferred quality.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Can I download YouTube Shorts?</h3>
+                <p class="text-gray-400 text-sm mt-1">Yes! Our downloader fully supports YouTube Shorts. Just paste the Shorts URL and download it like any regular video.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">What quality options are available?</h3>
+                <p class="text-gray-400 text-sm mt-1">We offer multiple quality options including 360p, 480p, 720p (HD), 1080p (Full HD), and higher when available. Choose the quality that suits your needs.</p>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

@@ -1,7 +1,36 @@
 {{-- resources/views/pinterest/index.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Pinterest Video Downloader')
+@section('title', 'Pinterest Video Downloader - Download Pinterest Videos & Pins')
+@section('meta_description', 'Download Pinterest videos and image pins for free. Save Pinterest video pins to your device in high quality. No registration or app installation needed.')
+@section('meta_keywords', 'pinterest downloader, pinterest video downloader, download pinterest videos, pinterest pin downloader, save pinterest videos, pinterest image downloader')
+
+@section('structured_data')
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "How to download Pinterest videos?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Copy the Pinterest pin URL, paste it into our downloader, and click Download to save the video or image."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I download Pinterest images too?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, our downloader supports both Pinterest video pins and image pins."
+            }
+        }
+    ]
+}
+</script>
+@endsection
 
 @section('content')
 <div class="w-full">
@@ -61,5 +90,23 @@
         </div>
     </div>
     @endif
+    {{-- FAQ Section --}}
+    <div class="mt-10 text-left">
+        <h2 class="text-xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-white font-semibold text-sm">How to download Pinterest videos?</h3>
+                <p class="text-gray-400 text-sm mt-1">Open the Pinterest pin, copy the URL from your browser, paste it in the input field above, and click Download.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Can I download Pinterest images too?</h3>
+                <p class="text-gray-400 text-sm mt-1">Yes! Our downloader supports both video pins and image pins from Pinterest.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold text-sm">Is it free to use?</h3>
+                <p class="text-gray-400 text-sm mt-1">Absolutely! Our Pinterest downloader is 100% free with no registration, no app installation, and no download limits.</p>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
