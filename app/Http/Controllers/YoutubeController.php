@@ -54,31 +54,278 @@ class YoutubeController extends Controller
         }
     }
 
-    /**
-     * Fetch video data using yt-dlp.
-     */
+    /* ------------------------------------------------------------------
+     *  MAIN FETCH — tries multiple methods in order
+     * ----------------------------------------------------------------*/
     private function fetchVideoData(string $url): ?array
     {
-        $escapedUrl = escapeshellarg($url);
-        $cmd = "python -m yt_dlp --js-runtimes nodejs -j {$escapedUrl} 2>NUL";
-        $output = shell_exec($cmd);
+        $videoId = $this->extractVideoId($url);
+
+        if (!$videoId) {
+            \Log::warning('YouTube: Could not extract video ID from URL: ' . $url);
+            return null;
+        }
+
+        // Method 1: YouTube innertube API (works on any server, no dependencies)
+        $result = $this->fetchViaInnertubeApi($videoId);
+        if ($result) return $result;
+
+        // Method 2: Scrape YouTube page for ytInitialPlayerResponse
+        $result = $this->fetchViaScraping($videoId);
+        if ($result) return $result;
+
+        // Method 3: yt-dlp fallback (if installed on server)
+        $result = $this->fetchViaYtDlp($url);
+        if ($result) return $result;
+
+        return null;
+    }
+
+    /* ------------------------------------------------------------------
+     *  Extract the 11-char video ID from various YouTube URL formats
+     * ----------------------------------------------------------------*/
+    private function extractVideoId(string $url): ?string
+    {
+        $patterns = [
+            '/(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/',
+            '/youtube\.com\/.*[?&]v=([a-zA-Z0-9_-]{11})/',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $url, $m)) {
+                return $m[1];
+            }
+        }
+
+        return null;
+    }
+
+    /* ------------------------------------------------------------------
+     *  Method 1: YouTube innertube API (ANDROID / IOS clients)
+     *  These clients return direct MP4 URLs without signature issues.
+     * ----------------------------------------------------------------*/
+    private function fetchViaInnertubeApi(string $videoId): ?array
+    {
+        $client = new Client(['timeout' => 30, 'verify' => false]);
+
+        $clients = [
+            [
+                'name'    => 'ANDROID',
+                'version' => '19.09.37',
+                'ua'      => 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+                'extra'   => ['androidSdkVersion' => 30, 'osName' => 'Android', 'osVersion' => '11'],
+                'cnum'    => '3',
+            ],
+            [
+                'name'    => 'IOS',
+                'version' => '19.09.3',
+                'ua'      => 'com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)',
+                'extra'   => ['deviceModel' => 'iPhone14,3', 'osName' => 'iPhone', 'osVersion' => '15.6'],
+                'cnum'    => '5',
+            ],
+        ];
+
+        foreach ($clients as $cfg) {
+            try {
+                $payload = [
+                    'videoId' => $videoId,
+                    'context' => [
+                        'client' => array_merge([
+                            'clientName'    => $cfg['name'],
+                            'clientVersion' => $cfg['version'],
+                            'hl' => 'en',
+                            'gl' => 'US',
+                        ], $cfg['extra']),
+                    ],
+                    'playbackContext' => [
+                        'contentPlaybackContext' => [
+                            'html5Preference' => 'HTML5_PREF_WANTS',
+                        ],
+                    ],
+                    'contentCheckOk' => true,
+                    'racyCheckOk'    => true,
+                ];
+
+                $response = $client->post('https://www.youtube.com/youtubei/api/v1/player', [
+                    'json'    => $payload,
+                    'headers' => [
+                        'User-Agent'               => $cfg['ua'],
+                        'Content-Type'             => 'application/json',
+                        'X-YouTube-Client-Name'    => $cfg['cnum'],
+                        'X-YouTube-Client-Version' => $cfg['version'],
+                        'Origin'                   => 'https://www.youtube.com',
+                    ],
+                ]);
+
+                $data = json_decode($response->getBody(), true);
+                if (!$data) continue;
+
+                $status = $data['playabilityStatus']['status'] ?? 'UNPLAYABLE';
+                if ($status !== 'OK') {
+                    \Log::info("YouTube innertube ({$cfg['name']}): status={$status} for {$videoId}");
+                    continue;
+                }
+
+                $result = $this->parseInnertubeResponse($data, $videoId);
+                if ($result) {
+                    \Log::info("YouTube: fetched via innertube ({$cfg['name']}) for {$videoId}");
+                    return $result;
+                }
+            } catch (\Exception $e) {
+                \Log::warning("YouTube innertube ({$cfg['name']}) failed for {$videoId}: " . $e->getMessage());
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /* ------------------------------------------------------------------
+     *  Parse innertube API player response into our standard format
+     * ----------------------------------------------------------------*/
+    private function parseInnertubeResponse(array $data, string $videoId): ?array
+    {
+        $details   = $data['videoDetails'] ?? [];
+        $title     = mb_substr($details['title'] ?? 'YouTube Video', 0, 200);
+        $author    = $details['author'] ?? 'Unknown';
+        $duration  = $this->formatDuration((int) ($details['lengthSeconds'] ?? 0));
+        $thumbs    = $details['thumbnail']['thumbnails'] ?? [];
+        $thumbnail = !empty($thumbs) ? end($thumbs)['url'] : null;
+
+        $streaming  = $data['streamingData'] ?? [];
+        $allFormats = array_merge(
+            $streaming['formats'] ?? [],
+            $streaming['adaptiveFormats'] ?? []
+        );
+
+        $formats       = [];
+        $seenQualities = [];
+
+        foreach ($allFormats as $fmt) {
+            $mime = $fmt['mimeType'] ?? '';
+            if (strpos($mime, 'video/mp4') === false) continue;
+
+            // Only use formats with a direct URL (skip cipher/signatureCipher)
+            $url = $fmt['url'] ?? null;
+            if (!$url) continue;
+
+            $quality    = $fmt['qualityLabel'] ?? ($fmt['quality'] ?? '?');
+            $hasAudio   = !empty($fmt['audioQuality']) || !empty($fmt['audioSampleRate']);
+            $w          = $fmt['width'] ?? 0;
+            $h          = $fmt['height'] ?? 0;
+            $resolution = ($w && $h) ? "{$w}x{$h}" : '?';
+            $size       = $this->formatBytes((int) ($fmt['contentLength'] ?? 0));
+            $isAvc      = strpos($mime, 'avc1') !== false;
+
+            $qualityKey = $quality . ($hasAudio ? '_av' : '_v');
+            if (isset($seenQualities[$qualityKey]) && !$isAvc) continue;
+            $seenQualities[$qualityKey] = true;
+
+            $formats[$qualityKey] = [
+                'url'        => $url,
+                'quality'    => $quality,
+                'resolution' => $resolution,
+                'formatId'   => (string) ($fmt['itag'] ?? ''),
+                'size'       => $size,
+                'hasAudio'   => $hasAudio,
+            ];
+        }
+
+        $formats = array_values($formats);
+
+        return $this->splitAndSortFormats($formats, $title, $author, $duration, $thumbnail, $videoId);
+    }
+
+    /* ------------------------------------------------------------------
+     *  Method 2: Scrape YouTube watch page for ytInitialPlayerResponse
+     * ----------------------------------------------------------------*/
+    private function fetchViaScraping(string $videoId): ?array
+    {
+        try {
+            $client = new Client(['timeout' => 30, 'verify' => false]);
+
+            $response = $client->get("https://www.youtube.com/watch?v={$videoId}", [
+                'headers' => [
+                    'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept-Language' => 'en-US,en;q=0.9',
+                    'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                ],
+            ]);
+
+            $html = (string) $response->getBody();
+
+            // Extract ytInitialPlayerResponse JSON
+            if (!preg_match('/var\s+ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;/s', $html, $m)) {
+                \Log::info("YouTube scraping: ytInitialPlayerResponse not found for {$videoId}");
+                return null;
+            }
+
+            $data = json_decode($m[1], true);
+            if (!$data) {
+                \Log::warning("YouTube scraping: failed to decode ytInitialPlayerResponse for {$videoId}");
+                return null;
+            }
+
+            $status = $data['playabilityStatus']['status'] ?? 'UNPLAYABLE';
+            if ($status !== 'OK') {
+                \Log::info("YouTube scraping: status={$status} for {$videoId}");
+                return null;
+            }
+
+            $result = $this->parseInnertubeResponse($data, $videoId);
+            if ($result) {
+                \Log::info("YouTube: fetched via page scraping for {$videoId}");
+            }
+            return $result;
+
+        } catch (\Exception $e) {
+            \Log::warning("YouTube scraping failed for {$videoId}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /* ------------------------------------------------------------------
+     *  Method 3: yt-dlp fallback (cross-platform)
+     * ----------------------------------------------------------------*/
+    private function fetchViaYtDlp(string $url): ?array
+    {
+        // Check if shell_exec is available
+        $disabled = array_map('trim', explode(',', ini_get('disable_functions') ?: ''));
+        if (!function_exists('shell_exec') || in_array('shell_exec', $disabled)) {
+            \Log::info('YouTube: shell_exec is disabled, skipping yt-dlp fallback');
+            return null;
+        }
+
+        $escapedUrl  = escapeshellarg($url);
+        $nullRedirect = PHP_OS_FAMILY === 'Windows' ? '2>NUL' : '2>/dev/null';
+
+        // Try several common yt-dlp invocations
+        $commands = [
+            "yt-dlp -j {$escapedUrl} {$nullRedirect}",
+            "python3 -m yt_dlp -j {$escapedUrl} {$nullRedirect}",
+            "python -m yt_dlp -j {$escapedUrl} {$nullRedirect}",
+        ];
+
+        $output = null;
+        foreach ($commands as $cmd) {
+            $output = @shell_exec($cmd);
+            if ($output) break;
+        }
 
         if (!$output) {
+            \Log::info('YouTube: yt-dlp returned no output');
             return null;
         }
 
         $data = json_decode($output, true);
-        if (!$data || !isset($data['title'])) {
-            return null;
-        }
+        if (!$data || !isset($data['title'])) return null;
 
-        $title = mb_substr($data['title'] ?? 'YouTube Video', 0, 200);
-        $author = $data['uploader'] ?? $data['channel'] ?? 'Unknown';
-        $duration = $this->formatDuration((int) ($data['duration'] ?? 0));
+        $title     = mb_substr($data['title'] ?? 'YouTube Video', 0, 200);
+        $author    = $data['uploader'] ?? $data['channel'] ?? 'Unknown';
+        $duration  = $this->formatDuration((int) ($data['duration'] ?? 0));
         $thumbnail = $data['thumbnail'] ?? null;
-        $videoId = $data['id'] ?? '';
+        $videoId   = $data['id'] ?? '';
 
-        // Use highest quality thumbnail
         if (!empty($data['thumbnails'])) {
             $thumbs = array_filter($data['thumbnails'], fn($t) => isset($t['url']));
             if (!empty($thumbs)) {
@@ -86,8 +333,7 @@ class YoutubeController extends Controller
             }
         }
 
-        // Collect downloadable mp4 formats
-        $formats = [];
+        $formats       = [];
         $seenQualities = [];
 
         foreach ($data['formats'] ?? [] as $fmt) {
@@ -95,18 +341,15 @@ class YoutubeController extends Controller
             if (($fmt['vcodec'] ?? 'none') === 'none') continue;
             if (!isset($fmt['url'])) continue;
 
-            $quality = $fmt['format_note'] ?? $fmt['qualityLabel'] ?? '?';
+            $quality  = $fmt['format_note'] ?? $fmt['qualityLabel'] ?? '?';
             $hasAudio = ($fmt['acodec'] ?? 'none') !== 'none';
             $resolution = $fmt['resolution'] ?? '?';
-            $size = $this->getFormatSize($fmt);
-            $vcodec = $fmt['vcodec'] ?? '';
-            $isAvc = strpos($vcodec, 'avc1') !== false;
+            $size     = $this->formatBytes((int) ($fmt['filesize'] ?? $fmt['filesize_approx'] ?? 0));
+            $vcodec   = $fmt['vcodec'] ?? '';
+            $isAvc    = strpos($vcodec, 'avc1') !== false;
 
-            // Dedupe: prefer avc1 for compatibility
             $qualityKey = $quality . ($hasAudio ? '_av' : '_v');
-            if (isset($seenQualities[$qualityKey]) && !$isAvc) {
-                continue;
-            }
+            if (isset($seenQualities[$qualityKey]) && !$isAvc) continue;
             $seenQualities[$qualityKey] = true;
 
             $formats[$qualityKey] = [
@@ -121,14 +364,25 @@ class YoutubeController extends Controller
 
         $formats = array_values($formats);
 
-        // Split into combined and video-only
-        $combinedFormats = array_values(array_filter($formats, fn($f) => $f['hasAudio']));
+        \Log::info("YouTube: fetched via yt-dlp for {$videoId}");
+        return $this->splitAndSortFormats($formats, $title, $author, $duration, $thumbnail, $videoId);
+    }
+
+    /* ------------------------------------------------------------------
+     *  Shared helpers
+     * ----------------------------------------------------------------*/
+
+    /**
+     * Split formats into combined / video-only, sort, and build final array.
+     */
+    private function splitAndSortFormats(array $formats, string $title, string $author, string $duration, ?string $cover, string $videoId): ?array
+    {
+        $combinedFormats  = array_values(array_filter($formats, fn($f) => $f['hasAudio']));
         $videoOnlyFormats = array_values(array_filter($formats, function ($f) {
             return !$f['hasAudio'] && $this->qualityOrder($f['quality']) >= $this->qualityOrder('480p');
         }));
 
-        // Sort by quality descending
-        usort($combinedFormats, fn($a, $b) => $this->qualityOrder($b['quality']) - $this->qualityOrder($a['quality']));
+        usort($combinedFormats,  fn($a, $b) => $this->qualityOrder($b['quality']) - $this->qualityOrder($a['quality']));
         usort($videoOnlyFormats, fn($a, $b) => $this->qualityOrder($b['quality']) - $this->qualityOrder($a['quality']));
 
         if (empty($combinedFormats) && empty($videoOnlyFormats)) {
@@ -139,16 +393,15 @@ class YoutubeController extends Controller
             'title'     => $title,
             'author'    => $author,
             'duration'  => $duration,
-            'cover'     => $thumbnail,
+            'cover'     => $cover,
             'videoId'   => $videoId,
             'combined'  => $combinedFormats,
             'videoOnly' => $videoOnlyFormats,
         ];
     }
 
-    private function getFormatSize(array $fmt): string
+    private function formatBytes(int $bytes): string
     {
-        $bytes = $fmt['filesize'] ?? $fmt['filesize_approx'] ?? 0;
         if ($bytes <= 0) return '';
         if ($bytes < 1024 * 1024) return round($bytes / 1024) . ' KB';
         return round($bytes / (1024 * 1024), 1) . ' MB';
@@ -198,7 +451,7 @@ class YoutubeController extends Controller
             ],
         ]);
 
-        $contentType = $response->getHeaderLine('Content-Type') ?: 'video/mp4';
+        $contentType   = $response->getHeaderLine('Content-Type') ?: 'video/mp4';
         $contentLength = $response->getHeaderLine('Content-Length');
 
         $headers = [
